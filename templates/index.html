@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Conference Letter Generator</title>
+<script src="https://cdn.tailwindcss.com"></script></head>
+<body class="bg-slate-50 p-2">
+<div class="max-w-6xl mx-auto space-y-4">
+<div class="bg-white p-4 rounded-xl shadow flex justify-between items-center">
+<div><h1 class="font-bold text-blue-800">📨 Conference Letter System</h1><p class="text-[11px]">PostgreSQL Permanent</p></div>
+<div class="text-[10px] bg-green-50 px-2 py-1 rounded">Logo: {{ 'Yes' if has_logo else 'No' }} | Sign: {{ 'Yes' if has_sig else 'No' }}</div>
+</div>
+
+<div class="bg-white p-4 rounded-xl shadow border-2 border-blue-200">
+<h2 class="font-bold text-xs mb-2">🏫 Upload Logo & Signature</h2>
+<form id="assetForm" enctype="multipart/form-data" class="grid md:grid-cols-3 gap-3">
+<div class="border p-2 rounded"><label class="text-[11px] font-bold">Logo</label><input type="file" name="logo" accept="image/*" class="w-full text-xs mt-1">{% if has_logo %}<img src="/static/uploads/logo.png" class="h-12 mt-2">{% endif %}</div>
+<div class="border p-2 rounded"><label class="text-[11px] font-bold">Signature</label><input type="file" name="signature" accept="image/*" class="w-full text-xs mt-1">{% if has_sig %}<img src="/static/uploads/signature.png" class="h-12 mt-2 bg-gray-100">{% endif %}</div>
+<div class="flex items-end"><button type="submit" class="w-full bg-blue-600 text-white py-2 rounded text-xs font-bold">⬆️ Upload & Save</button></div>
+</form>
+<p id="assetMsg" class="text-xs text-green-600 mt-2"></p>
+</div>
+
+<div class="grid md:grid-cols-2 gap-4">
+<div class="bg-white p-4 rounded-xl shadow">
+<h2 class="font-bold text-xs mb-2">1. Generate Letters</h2>
+<form action="/generate" method="post" enctype="multipart/form-data" class="space-y-2">
+<input name="conference_name" value="2nd International Medical Education Conference 2026" class="w-full border p-2 rounded text-xs" required>
+<div class="grid grid-cols-2 gap-2">
+<input name="organizer" value="SSNIMC" class="border p-2 rounded text-xs">
+<input name="venue" value="SSNIMC Auditorium" class="border p-2 rounded text-xs">
+<input name="date" type="date" class="border p-2 rounded text-xs" required>
+<input name="organizer_name" value="Dr. Sumaiya Mohammad" class="border p-2 rounded text-xs">
+</div>
+<select name="letter_type" id="letterTypeSelect" class="w-full border p-2 rounded text-xs font-bold bg-blue-50"></select>
+<input type="file" name="delegate_file" accept=".csv,.xlsx" class="w-full border p-2 rounded text-xs" required>
+<button class="w-full bg-blue-700 text-white py-3 rounded font-bold text-sm">🎉 Generate Letters</button>
+</form>
+</div>
+
+<div class="bg-white p-4 rounded-xl shadow border-2 border-yellow-300">
+<h2 class="font-bold text-xs mb-2">2. ✏️ Edit Body</h2>
+<select id="editSelect" onchange="loadForEdit()" class="w-full border p-2 rounded text-xs mb-2 bg-yellow-50"></select>
+<input id="editTitle" class="w-full border p-2 rounded text-xs mb-1">
+<input id="editSubject" class="w-full border p-2 rounded text-xs mb-1">
+<textarea id="editBody" rows="11" class="w-full border p-2 rounded text-[11px] font-mono"></textarea>
+<div class="grid grid-cols-3 gap-2 mt-2">
+<button onclick="saveTemplate()" class="bg-green-600 text-white py-2 rounded text-xs font-bold">💾 Save</button>
+<button onclick="deleteTemplate()" class="bg-red-600 text-white py-2 rounded text-xs font-bold">🗑️ Delete</button>
+<button onclick="resetTemplates()" class="bg-gray-600 text-white py-2 rounded text-xs font-bold">↩️ Reset</button>
+</div>
+<p id="editMsg" class="text-xs text-green-600 mt-1"></p>
+</div>
+</div>
+</div>
+<script>
+let allTemplates = {};
+async function loadTemplates(){
+  let res = await fetch('/api/templates').then(r=>r.json());
+  allTemplates=res;
+  let gen=document.getElementById('letterTypeSelect'), edit=document.getElementById('editSelect');
+  gen.innerHTML=''; edit.innerHTML='';
+  Object.keys(res).forEach(k=>{
+    gen.innerHTML+=`<option value="${k}">${res[k].title} (${k})</option>`;
+    edit.innerHTML+=`<option value="${k}">${res[k].title}</option>`;
+  });
+  loadForEdit();
+}
+function loadForEdit(){
+  let key=document.getElementById('editSelect').value;
+  if(!key||!allTemplates[key]) return;
+  document.getElementById('editTitle').value=allTemplates[key].title;
+  document.getElementById('editSubject').value=allTemplates[key].subject;
+  document.getElementById('editBody').value=allTemplates[key].body;
+}
+async function saveTemplate(){
+  let key=document.getElementById('editSelect').value;
+  await fetch('/api/templates/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,title:document.getElementById('editTitle').value,subject:document.getElementById('editSubject').value,body:document.getElementById('editBody').value})});
+  document.getElementById('editMsg').innerText='✅ Saved '+key; loadTemplates();
+}
+async function deleteTemplate(){
+  let key=document.getElementById('editSelect').value;
+  if(!confirm('Delete '+key+'?')) return;
+  await fetch('/api/templates/delete',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({key})});
+  loadTemplates();
+}
+async function resetTemplates(){
+  if(!confirm('Reset all?')) return;
+  await fetch('/api/templates/reset',{method:'POST'}); loadTemplates();
+}
+document.getElementById('assetForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  let fd=new FormData(e.target);
+  await fetch('/upload_assets',{method:'POST',body:fd});
+  document.getElementById('assetMsg').innerText='✅ Uploaded! Refreshing...';
+  setTimeout(()=>location.reload(),1000);
+});
+loadTemplates();
+</script>
+</body></html>
