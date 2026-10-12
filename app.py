@@ -302,4 +302,6 @@ def generate():
     return send_file(zip_buffer, as_attachment=True, download_name=f"{letter_type}_letters.zip")
 
 if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    port = int(os.environ.get('PORT', 5000))
+    debug = os.environ.get('FLASK_DEBUG', '1') == '1' and not os.environ.get('RENDER')
+    app.run(debug=debug, host='0.0.0.0', port=port)

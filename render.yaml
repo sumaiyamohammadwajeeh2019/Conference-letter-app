@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: conference-letter-app
+    runtime: python
+    repo: https://github.com/sumaiyamohammadwajeeh2019/Conference-letter-app.git
+    branch: main
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "gunicorn app:app --bind 0.0.0.0:$PORT --workers 2 --timeout 120"
+    plan: free
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      # DATABASE_URL is optional. Add a Render Postgres and set it in dashboard/CLI for persistence.
+      # - key: DATABASE_URL
+      #   sync: false
